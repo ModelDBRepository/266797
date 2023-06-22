@@ -1,0 +1,662 @@
+load_file("nrngui.hoc")
+load_file("cell_seed4_0_v4.hoc")
+cvode_active(1) 
+
+objref testcell, stim
+testcell = new Stellate_ventEC() 
+
+testcell.init()
+
+celsius=32 //EG
+
+proc def(){ 
+	
+//******AXON************
+gpasax=testcell.axon.g_pas
+epasax=testcell.axon.e_pas
+RaAx=testcell.axon.Ra
+kdr_ax=testcell.axon.gkdrbar_kdr //ok
+nax_ax=testcell.axon.gbar_nax    //ok
+kap_ax=testcell.axon.gkabar_kap //ok
+napIn_ax=testcell.axon.gbar_napIn   //ok 
+kmb_ax=testcell.axon.gbar_kmb   
+//ih_ax=testcell.axon.gihbar_ih  
+ 	
+//******DEND-BASAL************
+gpasallnoax=testcell.dend.g_pas
+epasallnoax=testcell.dend.e_pas
+Raallnoax=testcell.dend.Ra
+kdr_dend=testcell.dend.gkdrbar_kdr
+nax_dend=testcell.dend.gbar_nax
+kap_dend=testcell.dend.gkabar_kap //remove
+//kad_dend=testcell.dend.gkabar_kad
+//ih_fast_dend=testcell.dend.gfastbar_ih 
+//ih_slow_dend=testcell.dend.gslowbar_ih  
+hd_dend=testcell.dend.ghdbar_hd 
+//can_dend=testcell.dend.gcanbar_can
+//cal_dend=testcell.dend.gcalbar_cal
+//catb_allnoax=testcell.dend.gcatbar_catb
+catb_dend=testcell.dend.gcatbar_catb
+//kca_allnoax=testcell.dend.gbar_kca  
+kca_dend=testcell.dend.gbar_kca  			
+//napIn_allnoax=testcell.dend.gbar_napIn   
+napIn_dend=testcell.dend.gbar_napIn
+cagk_dend=testcell.soma.gbar_cagk
+	
+//**********SOMA********
+gpasallnoax=testcell.soma.g_pas
+epasallnoax=testcell.soma.e_pas
+Raallnoax=testcell.soma.Ra
+kdr_soma=testcell.soma.gkdrbar_kdr
+nax_soma=testcell.soma.gbar_nax
+kap_soma=testcell.soma.gkabar_kap 
+//ih_fast_soma=testcell.soma.gfastbar_ih 
+//ih_slow_soma=testcell.soma.gslowbar_ih
+hd_soma=testcell.soma.ghdbar_hd
+//can_soma=testcell.soma.gcanbar_can
+//cal_soma=testcell.soma.gcalbar_cal
+//catb_allnoax=testcell.soma.gcatbar_catb
+catb_soma=testcell.soma.gcatbar_catb
+kca_soma=testcell.soma.gbar_kca
+//napIn_allnoax=testcell.soma.gbar_napIn 
+napIn_soma=testcell.soma.gbar_napIn 
+cagk_soma=testcell.soma.gbar_cagk
+kmb_soma=testcell.soma.gbar_kmb			                                                                                           //new pv
+}
+//********************************************
+
+access testcell.soma
+
+Vrest=-68.6                //EG
+proc init() {
+
+  t=0
+  
+  finitialize(Vrest)
+
+	forall {
+		v = Vrest
+		if(ismembrane("nax") || ismembrane("napIn")) {
+			ena=50
+		}
+		if(ismembrane("kdr") || ismembrane("kap") || ismembrane("kir") || ismembrane("kdb") || ismembrane("kmb") || ismembrane("kad")) {       //pv cos'è kap? dovevamo aggiungere kdb e krdb?
+			ek=-90
+		}
+		if(ismembrane("ih")) {
+			eih_ih=-30
+		}
+		if(ismembrane("cacum")) {tau_cacum=500}
+	}
+
+	finitialize(Vrest)
+	fcurrent()
+	if(ismembrane("cacum")) {irest_cacum=ica}
+	print ica, irest_cacum
+	cvode.re_init()
+/*
+	forall {
+		for(x) {
+			if(ismembrane("na3") || ismembrane("nax")) {
+				e_pas(x)=v(x)+(ina(x)+ik(x))/g_pas(x)
+			}
+			if(ismembrane("ih")) {
+				e_pas(x)=e_pas(x)+i_ih(x)/g_pas(x)
+			}
+		}
+	}
+*/
+}
+objref syn, ns, nc
+access testcell.soma
+syn = new Exp2Syn(.5)
+syn.tau1=0.3
+syn.tau2=3
+syn.e=0
+ns = new NetStim(.5)
+ns.number=5
+ns.interval=20
+ns.start=4000
+ns.noise=0
+nc = new NetCon(ns, syn, 0, 0, 0e-3) //7e-3
+
+def()
+init() 
+proc biophysint() {
+
+forsec testcell.axonal {  
+
+	g_pas = gpasax
+    e_pas = epasax
+	Ra = RaAx
+	gkdrbar_kdr = kdr_ax
+	gbar_nax = nax_ax
+	gkabar_kap = kap_ax
+	gbar_napIn =  napIn_ax
+	gbar_kmb= kmb_ax
+	//gihbar_ih = ih_ax
+}
+
+forsec testcell.basal {
+	
+	g_pas = gpasallnoax
+	e_pas = epasallnoax
+    Ra = Raallnoax
+	gkdrbar_kdr = kdr_dend
+	gbar_nax = nax_dend
+	gkabar_kap = kap_dend //remove
+	//gkabar_kad = kad_dend
+	//gfastbar_ih =ih_fast_dend
+	//gslowbar_ih =ih_slow_dend
+	//gcanbar_can = can_dend 
+	//gcalbar_cal = cal_dend 	
+	//gcatbar_catb= catb_allnoax
+	gcatbar_catb= catb_dend
+	gbar_kca = kca_dend
+	//gbar_napIn =  napIn_allnoax
+	gbar_napIn =  napIn_dend
+	ghdbar_hd= hd_dend
+	gbar_cagk=cagk_dend
+}
+  
+forsec testcell.somatic {
+	
+	g_pas = gpasallnoax
+	e_pas = epasallnoax
+    Ra = Raallnoax
+	gkdrbar_kdr = kdr_soma
+	gbar_nax = nax_soma
+	gkabar_kap = kap_soma
+	//gfastbar_ih =ih_fast_soma
+	//gslowbar_ih =ih_slow_soma
+	//gcanbar_can = can_soma 
+	//gcalbar_cal = cal_soma
+	//gcatbar_catb= catb_allnoax
+	gcatbar_catb= catb_soma
+	gbar_kca = kca_soma
+	//gbar_napIn =  napIn_allnoax
+	gbar_napIn =  napIn_soma
+	ghdbar_hd= hd_soma
+	gbar_cagk= cagk_soma
+	gbar_kmb=kmb_soma
+}
+  
+}
+
+proc rest() {
+testcell.biophys()
+def()
+//biophysint()
+print "reset"
+}
+
+
+testcell.soma {
+stim = new IClamp(0.5)
+stim.del=2000
+stim.dur=4000
+stim.amp=0.2
+}
+/*
+xpanel("values")
+xvalue("gpasax")
+xvalue("gpasallnoax")
+xvalue("epasax")
+xvalue("epasallnoax")
+xvalue("RaAx")
+xvalue("Raallnoax")
+xvalue("nax_ax")
+xvalue("nax_soma")
+xvalue("nax_dend")
+xvalue("napIn_ax")
+//xvalue("napIn_allnoax")
+xvalue("napIn_soma")
+xvalue("napIn_dend")
+xvalue("kdr_ax")
+xvalue("kdr_soma")
+xvalue("kdr_dend")
+xvalue("kap_ax")
+xvalue("kap_soma")
+xvalue("kap_dend") //remove
+xvalue("kmb_ax")
+xvalue("kmb_soma")
+//xvalue("kad_dend")
+//xvalue("ih_ax")                                                //pv
+//xvalue("ih_fast_soma")
+//xvalue("ih_slow_soma")
+//xvalue("ih_fast_dend")
+//xvalue("ih_slow_dend")
+//xvalue("cal_soma")
+//xvalue("cal_dend") 
+//xvalue("can_soma")
+//xvalue("can_dend")
+//xvalue("catb_allnoax")
+xvalue("hd_soma")
+xvalue("hd_dend")
+xvalue("catb_dend")
+xvalue("catb_soma")
+xvalue("kca_dend")
+xvalue("kca_soma")
+xvalue("cagk_soma")
+xvalue("cagk_dend")
+xpanel()
+*/
+
+/*
+xpanel("cond")
+xbutton("set cond", "biophysint()")
+//xbutton("reset", "rest()")
+xbutton("reset init kin", "set_kin_init()")
+xbutton("change all kin", "change_kin()")
+xbutton("change nax", "change_nax()")
+xbutton("change kdr", "change_kdr()")
+xbutton("change kap", "change_kap()")
+xbutton("change kad", "change_kad()")
+xbutton("change nap", "change_nap()")
+xbutton("change catb", "change_catb()")
+
+xpanel()
+*/
+proc def_kin_init() {
+
+forall{
+		tha_nax_init=tha_nax
+		qa_nax_init=qa_nax
+		thinf_nax_init=thinf_nax
+		qinf_nax_init=qinf_nax
+		
+		vhalfn_kdr_init=vhalfn_kdr
+		zetan_kdr_init=zetan_kdr
+
+
+		zetan_kap_init=zetan_kap
+		zetal_kap_init=zetal_kap
+
+		vhalfn_kap_init=vhalfn_kap
+		vhalfl_kap_init=vhalfl_kap
+
+	//ih
+	//vhalfl_ih=-83.1
+	//kl_ih=8.1
+
+	//napIn
+
+	sh0_napIn_init=sh0_napIn
+	sh1_napIn_init=sh1_napIn
+
+	km_napIn_init=km_napIn
+	
+	//catb
+	
+	vhm_catb_init=vhm_catb
+	km_catb_init=km_catb
+
+	vhh_catb_init=vhh_catb
+	ki_catb_init=ki_catb
+
+
+	vhalfm_catb_init=vhalfm_catb
+	zetam_catb_init=zetam_catb
+	gmm_catb_init=gmm_catb
+	a0m_catb_init=a0m_catb
+
+
+	zetah_catb_init=zetah_catb
+	gmh_catb_init=gmh_catb
+	vhalfh_catb_init=vhalfh_catb
+	a0h_catb_init=a0h_catb
+	
+	}
+}
+
+def_kin_init()
+proc set_kin_init() {
+print "reset_all_kin"
+forall{
+		tha_nax=tha_nax_init
+		qa_nax=qa_nax_init
+		thinf_nax=thinf_nax_init
+		qinf_nax=qinf_nax_init
+		
+		vhalfn_kdr=vhalfn_kdr_init
+		zetan_kdr=zetan_kdr_init
+
+
+		zetan_kap=zetan_kap_init
+		zetal_kap=zetal_kap_init
+
+		vhalfn_kap=vhalfn_kap_init
+		vhalfl_kap=vhalfl_kap_init
+
+	//ih
+	//vhalfl_ih=-83.1
+	//kl_ih=8.1
+
+	//napIn
+
+	sh0_napIn=sh0_napIn_init
+	sh1_napIn=sh1_napIn_init
+
+	km_napIn=km_napIn_init
+	
+	//catb
+	
+	vhm_catb=vhm_catb_init
+	km_catb=km_catb_init
+
+	vhh_catb=vhh_catb_init
+	ki_catb=ki_catb_init
+
+
+	vhalfm_catb=vhalfm_catb_init
+	zetam_catb=zetam_catb_init
+	gmm_catb=gmm_catb_init
+	a0m_catb=a0m_catb_init
+
+
+	zetah_catb=zetah_catb_init
+	gmh_catb=gmh_catb_init
+	vhalfh_catb=vhalfh_catb_init
+	a0h_catb=a0h_catb_init
+	
+	}
+}
+
+proc change_kin(){
+print "change_all_kin"
+	forall{
+	// Nax
+	tha_nax=-31
+	qa_nax=5.1
+	thinf_nax=-58.2
+	qinf_nax=5
+
+
+	/*Kdr
+	vhalfn_kdr=-3.8
+	zetan_kdr=-2.4
+	*/
+	change_kdr()
+
+	//kaprox
+
+	zetan_kap=-2.2
+	zetal_kap=2.2
+
+	vhalfn_kap=-34.7
+	vhalfl_kap=-80.3
+
+	//ih
+	//vhalfl_ih=-83.1
+	//kl_ih=8.1
+
+	//napIn
+
+	sh0_napIn=-8
+	sh1_napIn=0.8
+
+	km_napIn=5.2
+	
+	//catb
+	
+	vhm_catb=-60.5
+	km_catb=5.3
+
+	vhh_catb=-80.6
+	ki_catb=5.44
+
+
+	vhalfm_catb=-48
+	zetam_catb=6.8
+	gmm_catb=0.4
+	a0m_catb=0.028
+
+
+	zetah_catb=11
+	gmh_catb=0.8
+	vhalfh_catb=-60
+	a0h_catb=0.0032
+	}
+
+}
+
+proc change_catb(){
+print "change_catb"
+	forall{
+	vhm_catb=-60.5
+	km_catb=5.3
+
+	vhh_catb=-80.6
+	ki_catb=5.44
+	
+	vhalfm_catb=-48
+	zetam_catb=6.8
+	gmm_catb=0.4
+	a0m_catb=0.028
+
+
+	zetah_catb=11
+	gmh_catb=0.8
+	vhalfh_catb=-60
+	a0h_catb=0.0032
+	}
+
+}
+
+proc change_nax(){
+print "change_nax"
+forall {
+	tha_nax=-31
+	qa_nax=5.1
+	thinf_nax=-58.2
+	qinf_nax=5
+	}
+}
+
+proc change_kdr(){
+//print "change kdr"
+/*forall {
+	//vhalfn_kdr=-3.8
+	//zetan_kdr=-2.4
+	}
+*/
+forall if(ismembrane("kdr")){
+			a0n_kdr=0.002
+			vhalfn_kdr=-30
+			zetan_kdr=-2.4
+			}
+}
+
+proc change_kap(){
+print "change_kap"
+forall {
+	zetan_kap=-2.2
+	zetal_kap=2.2
+
+	vhalfn_kap=-34.7
+	vhalfl_kap=-80.3
+}
+}
+
+proc change_kad(){
+print "change_kad"
+forall {
+	zetan_kad=-2.2
+	zetal_kad=2.2
+
+	vhalfn_kad=-34.7-12
+	vhalfl_kad=-80.3
+}
+}
+
+proc change_nap(){
+print "change_nap"
+forall {
+	sh0_napIn=-8
+	sh1_napIn=0.8
+
+	km_napIn=5.2
+	}
+}
+
+
+
+proc control() {
+gpasax = 2.1274e-05
+gpasallnoax = 2e-05
+epasax = -80
+epasallnoax = -80
+RaAx = 102.629
+Raallnoax = 275.941
+nax_ax = 0.01
+nax_soma = 0.006
+nax_dend = 0.006
+napIn_ax = 0.0007
+napIn_soma = 0.00025
+napIn_dend = 0
+kdr_ax = 0.01
+kdr_soma = 0.0013
+kdr_dend = 0.0013
+kap_ax = 0
+kap_soma = 0
+kap_dend = 0
+kmb_ax = 0.003
+kmb_soma = 0.001
+hd_soma = 0.0003
+hd_dend = 0
+catb_dend = 0
+catb_soma = 0.0004
+kca_dend = 0
+kca_soma = 0
+cagk_soma = 0
+cagk_dend = 0
+biophysint()
+}
+
+proc noCaT(){
+
+control()
+catb_soma=0
+biophysint()
+
+}
+
+proc noNap(){
+
+control()
+napIn_ax=0
+napIn_soma=0
+biophysint()
+
+}
+
+proc noNapnocat(){
+
+control()
+napIn_ax=0
+catb_soma=0
+napIn_soma=0
+biophysint()
+
+}
+
+/*xpanel("Conditions")
+xbutton("Control", "control()")
+xbutton("No CaT", "noCaT()")
+//xbutton("reset", "rest()")
+xbutton("No Nap", "noNap()")
+xbutton("No CaT & no Nap ", "noNapnocat()")
+xpanel(380,390)*/
+
+proc canc() {
+Graph[0].erase_all()
+
+}
+proc keepl() {
+Graph[0].exec_menu("Keep Lines")
+
+}
+/*xpanel("Run")
+xbutton("Run", "run_canc()")
+xpanel()
+*/
+
+
+proc makeplots() {
+Graph[0].erase_all()
+
+Graph[0].exec_menu("Keep Lines")
+
+Graph[0].addvar("v(.5)",1,1)
+control()
+run()
+Graph[0].exec_menu("Keep Lines")
+Graph[0].addvar("v(.5)",2,1)
+noCaT()
+run()
+Graph[0].exec_menu("Keep Lines")
+Graph[0].addvar("v(.5)",3,1)
+noNap()
+run()
+Graph[0].exec_menu("Keep Lines")
+Graph[0].addvar("v(.5)",4,1)
+noNapnocat()
+run()
+}
+proc i50pA(){
+stim.amp=0.05
+Graph[0].size(0,10000,-72,-65)
+makeplots()
+}
+
+proc i100pA(){
+stim.amp=0.1
+Graph[0].size(0,10000,-72,-60)
+makeplots()
+}
+
+proc i200pA(){
+stim.amp=0.2
+Graph[0].size(0,10000,-72,20)
+makeplots()
+}
+
+proc i250pA(){
+stim.amp=0.25
+Graph[0].size(0,10000,-72,20)
+makeplots()
+}
+/*Graph[0].erase_all()
+	Graph[0].size(0,600,-80,20)
+	Graph[0].exec_menu("Keep Lines")
+	Graph[1].erase_all()
+	Graph[0].addvar("v(.5)",1,1)
+	run()
+	gbar_kmb=0.00
+	Graph[0].exec_menu("Keep Lines")
+	Graph[0].addvar("v(.5)",2,1)
+	Graph[1].erase_all()
+	run()
+	gcanbar_can=0.0
+	Graph[0].exec_menu("Keep Lines")
+	Graph[0].addvar("v(.5)",3,1)
+	Graph[1].erase_all()
+	run()
+	gbar_kmb=0.005
+	gcanbar_can=0.6
+	
+	
+	*/
+xpanel("Current injected")
+xbutton("50 pA", "i50pA()")
+xbutton("100 pA", "i100pA()")
+xbutton("200 pA", "i200pA()")
+xbutton("250 pA", "i250pA()")
+//xpanel(200,390)
+xpanel(541,391)
+
+
+//load_file("for_rev_traces.ses")
+load_file("fig5.ses")
+tstop = 10000
+biophysint()
+//load_file("epsps_rev.ses")
